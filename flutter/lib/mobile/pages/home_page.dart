@@ -15,6 +15,10 @@ abstract class PageShape extends Widget {
   final List<Widget> appBarActions = [];
 }
 
+// Fiosk Remote: simplified single-page UI.
+// Only ServerPage (the host/screen-share page) is shown. Settings reachable
+// via the gear icon in the AppBar. No bottom navigation, no chat, no outgoing
+// connection — Fiosk devices are only controlled, never controllers.
 class HomePage extends StatefulWidget {
   static final homeKey = GlobalKey<HomePageState>();
 
@@ -25,132 +29,45 @@ class HomePage extends StatefulWidget {
 }
 
 class HomePageState extends State<HomePage> {
-  var _selectedIndex = 0;
-  int get selectedIndex => _selectedIndex;
-  final List<PageShape> _pages = [];
-  int _chatPageTabIndex = -1;
-  bool get isChatPageCurrentTab => isAndroid
-      ? _selectedIndex == _chatPageTabIndex
-      : false; // change this when ios have chat page
+  late final ServerPage _serverPage;
+
+  // Backward-compat shims for code that still queries home tab state.
+  int get selectedIndex => 0;
+  bool get isChatPageCurrentTab => false;
 
   void refreshPages() {
-    setState(() {
-      initPages();
-    });
+    if (mounted) setState(() {});
   }
 
   @override
   void initState() {
     super.initState();
-    initPages();
+    _serverPage = ServerPage();
   }
 
-  void initPages() {
-    _pages.clear();
-    if (!bind.isIncomingOnly()) {
-      _pages.add(ConnectionPage(
-        appBarActions: [],
-      ));
-    }
-    if (isAndroid && !bind.isOutgoingOnly()) {
-      _chatPageTabIndex = _pages.length;
-      _pages.addAll([ChatPage(type: ChatPageType.mobileMain), ServerPage()]);
-    }
-    _pages.add(SettingsPage());
+  void _openSettings() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => SettingsPage()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-        onWillPop: () async {
-          if (_selectedIndex != 0) {
-            setState(() {
-              _selectedIndex = 0;
-            });
-          } else {
-            return true;
-          }
-          return false;
-        },
-        child: Scaffold(
-          // backgroundColor: MyTheme.grayBg,
-          appBar: AppBar(
-            centerTitle: true,
-            title: appTitle(),
-            actions: _pages.elementAt(_selectedIndex).appBarActions,
-          ),
-          bottomNavigationBar: BottomNavigationBar(
-            key: navigationBarKey,
-            items: _pages
-                .map((page) =>
-                    BottomNavigationBarItem(icon: page.icon, label: page.title))
-                .toList(),
-            currentIndex: _selectedIndex,
-            type: BottomNavigationBarType.fixed,
-            selectedItemColor: MyTheme.accent, //
-            unselectedItemColor: MyTheme.darkGray,
-            onTap: (index) => setState(() {
-              // close chat overlay when go chat page
-              if (_selectedIndex != index) {
-                _selectedIndex = index;
-                if (isChatPageCurrentTab) {
-                  gFFI.chatModel.hideChatIconOverlay();
-                  gFFI.chatModel.hideChatWindowOverlay();
-                  gFFI.chatModel.mobileClearClientUnread(
-                      gFFI.chatModel.currentKey.connId);
-                }
-              }
-            }),
-          ),
-          body: _pages.elementAt(_selectedIndex),
-        ));
-  }
-
-  Widget appTitle() {
-    final currentUser = gFFI.chatModel.currentUser;
-    final currentKey = gFFI.chatModel.currentKey;
-    if (isChatPageCurrentTab &&
-        currentUser != null &&
-        currentKey.peerId.isNotEmpty) {
-      final connected =
-          gFFI.serverModel.clients.any((e) => e.id == currentKey.connId);
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Tooltip(
-            message: currentKey.isOut
-                ? translate('Outgoing connection')
-                : translate('Incoming connection'),
-            child: Icon(
-              currentKey.isOut
-                  ? Icons.call_made_rounded
-                  : Icons.call_received_rounded,
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "${currentUser.firstName}   ${currentUser.id}",
-                  ),
-                  if (connected)
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Color.fromARGB(255, 133, 246, 199)),
-                    ).marginSymmetric(horizontal: 2),
-                ],
-              ),
-            ),
+    return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        title: Text(bind.mainGetAppNameSync()),
+        actions: [
+          ..._serverPage.appBarActions,
+          IconButton(
+            icon: Icon(Icons.settings),
+            tooltip: translate('Settings'),
+            onPressed: _openSettings,
           ),
         ],
-      );
-    }
-    return Text(bind.mainGetAppNameSync());
+      ),
+      body: _serverPage,
+    );
   }
 }
 
@@ -245,9 +162,9 @@ class WebHomePage extends StatelessWidget {
       }
     }
     if (id != null) {
-      connect(context, id, 
-        isFileTransfer: isFileTransfer, 
-        isViewCamera: isViewCamera, 
+      connect(context, id,
+        isFileTransfer: isFileTransfer,
+        isViewCamera: isViewCamera,
         isTerminal: isTerminal,
         password: password);
     }

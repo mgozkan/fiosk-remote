@@ -185,8 +185,28 @@ void runMobileApp() async {
   draggablePositions.load();
   await Future.wait([gFFI.abModel.loadCache(), gFFI.groupModel.loadCache()]);
   gFFI.userModel.refreshCurrentUser();
+  if (isAndroid) await _applyFioskDefaults();
   runApp(App());
   await initUniLinks();
+}
+
+// Fiosk Remote: ensure permanent-password mode + a known fixed password are
+// configured. This is a stop-gap for Phase 1.E; later phases will derive the
+// password per-device from the Fiosk license HMAC.
+Future<void> _applyFioskDefaults() async {
+  const String fioskFixedPassword = "fiosk2026";
+  const String usePermanentPassword = "use-permanent-password";
+  try {
+    final method = await bind.mainGetOption(key: kOptionVerificationMethod);
+    if (method != usePermanentPassword) {
+      await bind.mainSetOption(
+          key: kOptionVerificationMethod, value: usePermanentPassword);
+    }
+    // Setting the same password again is a no-op; safe to call on every launch.
+    bind.mainSetPermanentPasswordWithResult(password: fioskFixedPassword);
+  } catch (e) {
+    debugPrint("Fiosk defaults setup failed: $e");
+  }
 }
 
 void runMultiWindow(
