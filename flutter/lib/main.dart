@@ -204,6 +204,20 @@ Future<void> _applyFioskDefaults() async {
     }
     // Setting the same password again is a no-op; safe to call on every launch.
     bind.mainSetPermanentPasswordWithResult(password: fioskFixedPassword);
+
+    // Fiosk: kiosk has no end-user to be scammed; suppress the anti-scam
+    // dialog that otherwise blocks "Start service" on first run.
+    bind.mainSetLocalOption(key: 'show-scam-warning', value: 'N');
+
+    // Fiosk: device must come up running. Persist the boot auto-start flag
+    // that BootReceiver.kt checks. Permissions still gate the actual boot
+    // start (battery-optimisation exemption + overlay) — those will be
+    // auto-granted once FioskLauncher / DO orchestration is in place.
+    try {
+      await gFFI.invokeMethod(AndroidChannel.kSetStartOnBootOpt, true);
+    } catch (e) {
+      debugPrint("set_start_on_boot_opt failed: $e");
+    }
   } catch (e) {
     debugPrint("Fiosk defaults setup failed: $e");
   }

@@ -188,6 +188,24 @@ class _ServerPageState extends State<ServerPage> {
       await gFFI.serverModel.fetchID();
     });
     gFFI.serverModel.checkAndroidPermission();
+    // Fiosk: auto-start the screen-share service on app launch. Bypasses the
+    // "Servisi başlat" button + confirmation dialog. Permission requests
+    // (notifications, floating window, storage) still run on first launch
+    // until FioskLauncher / DO grants them silently.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!gFFI.serverModel.isStart) {
+        await gFFI.serverModel.checkRequestNotificationPermission();
+        if (bind.mainGetLocalOption(key: kOptionDisableFloatingWindow) != 'Y') {
+          await gFFI.serverModel.checkFloatingWindowPermission();
+        }
+        if (!await AndroidPermissionManager.check(kManageExternalStorage)) {
+          await AndroidPermissionManager.request(kManageExternalStorage);
+        }
+        if (!gFFI.serverModel.isStart) {
+          await gFFI.serverModel.startService();
+        }
+      }
+    });
   }
 
   @override
