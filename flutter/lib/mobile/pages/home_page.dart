@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hbb/mobile/pages/server_page.dart';
 import 'package:flutter_hbb/mobile/pages/settings_page.dart';
 import 'package:flutter_hbb/web/settings_page.dart';
@@ -65,11 +66,25 @@ class HomePageState extends State<HomePage> {
     );
   }
 
+  // Closes the Fiosk Remote activity and returns the user to whatever task
+  // was running before (FioskLauncher home / Fiosk Price Checker kiosk).
+  // The foreground MainService keeps running — Fiosk Remote remains
+  // reachable from outside, only the UI is dismissed. Required because
+  // the kiosk has no swipe-up / home button to leave the app.
+  void _closeApp() {
+    SystemNavigator.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
+        leading: IconButton(
+          icon: Icon(Icons.close),
+          tooltip: translate('Close'),
+          onPressed: _closeApp,
+        ),
         title: Text(bind.mainGetAppNameSync()),
         actions: [
           ..._serverPage.appBarActions,

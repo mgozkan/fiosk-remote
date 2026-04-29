@@ -681,7 +681,11 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
     final settings = SettingsList(
       sections: [
         customClientSection,
-        if (!bind.isDisableAccount())
+        // Fiosk: Account / Login section permanently hidden. Fiosk Remote
+        // is provisioned via FioskLauncher — operator never logs in to a
+        // RustDesk account. The previous gate `!bind.isDisableAccount()`
+        // was upstream's runtime opt-out; we hard-disable instead.
+        if (false) // !bind.isDisableAccount()
           SettingsSection(
             title: Text(translate('Account')),
             tiles: [
@@ -711,7 +715,10 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
             ],
           ),
         SettingsSection(title: Text(translate("Settings")), tiles: [
-          if (!disabledSettings && !_hideNetwork && !_hideServer)
+          // Fiosk: ID/Relay Server permanently hidden. The server is
+          // baked into the build (rms.fiosk.com.tr) — operator must not
+          // be able to point Fiosk Remote at a different rendezvous.
+          if (false) // !disabledSettings && !_hideNetwork && !_hideServer
             SettingsTile(
                 title: Text(translate('ID/Relay Server')),
                 leading: Icon(Icons.cloud),
@@ -819,7 +826,8 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
               showThemeSettings(gFFI.dialogManager);
             },
           ),
-          if (!bind.isDisableAccount())
+          // Fiosk: hidden — depends on Account login which we removed above.
+          if (false) // !bind.isDisableAccount()
             SettingsTile.switchTile(
               title: Text(translate('note-at-conn-end-tip')),
               initialValue: _allowAskForNoteAtEndOfConnection,

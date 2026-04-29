@@ -209,6 +209,12 @@ Future<void> _applyFioskDefaults() async {
     // dialog that otherwise blocks "Start service" on first run.
     bind.mainSetLocalOption(key: 'show-scam-warning', value: 'N');
 
+    // Fiosk: no floating window. RustDesk's floating bubble (logo with
+    // "Show / Stop service" popup) appears whenever the service runs
+    // and the user navigates away. On a kiosk it's just visual clutter
+    // over the price-checker UI — operator never needs the bubble.
+    bind.mainSetLocalOption(key: 'disable-floating-window', value: 'Y');
+
     // Fiosk: device must come up running. Persist the boot auto-start flag
     // that BootReceiver.kt checks. Permissions still gate the actual boot
     // start (battery-optimisation exemption + overlay) — those will be
