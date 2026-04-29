@@ -22,11 +22,10 @@ class ServerPage extends StatefulWidget implements PageShape {
   @override
   final icon = const Icon(Icons.mobile_screen_share);
 
+  // Fiosk: kebab menu hidden — these settings (password mode, change ID, etc.)
+  // are admin-controlled defaults and must not be editable by the kiosk operator.
   @override
-  final appBarActions = (!bind.isDisableSettings() &&
-          bind.mainGetBuildinOption(key: kOptionHideSecuritySetting) != 'Y')
-      ? [_DropDownAction()]
-      : [];
+  final appBarActions = <Widget>[];
 
   ServerPage({Key? key}) : super(key: key);
 

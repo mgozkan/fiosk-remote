@@ -46,8 +46,22 @@ class HomePageState extends State<HomePage> {
   }
 
   void _openSettings() {
+    // SettingsPage is a PageShape (designed as tab content) and has no Scaffold
+    // of its own. Wrap it in a Scaffold + AppBar so the user gets a back button
+    // and is not stuck on the page.
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => SettingsPage()),
+      MaterialPageRoute(
+        builder: (_) {
+          final settings = SettingsPage();
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(settings.title),
+              actions: settings.appBarActions,
+            ),
+            body: settings,
+          );
+        },
+      ),
     );
   }
 
