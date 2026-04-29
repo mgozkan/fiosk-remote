@@ -124,7 +124,7 @@ jobs:
           cp ./target/aarch64-linux-android/release/liblibrustdesk.so \
              ./flutter/android/app/src/main/jniLibs/arm64-v8a/librustdesk.so
 
-      - name: Build APK
+      - name: Build APK (debug-signed)
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
@@ -132,7 +132,8 @@ jobs:
           export PATH=/usr/lib/jvm/java-17-openjdk-amd64/bin:$PATH
           # Increase Gradle JVM memory
           sed -i "s/org.gradle.jvmargs=-Xmx1024M/org.gradle.jvmargs=-Xmx2g/g" ./flutter/android/gradle.properties
-          # Use debug signing for now (release keystore comes in Phase 1.F)
+          # Build with debug signing — we re-sign with the Fiosk release keystore
+          # in the next step using r0adkll/sign-android-release.
           sed -i "s/signingConfigs.release/signingConfigs.debug/g" ./flutter/android/app/build.gradle
           # Copy libc++_shared.so (bundled with NDK)
           cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so" \
@@ -143,14 +144,33 @@ jobs:
             --build-name="${{ env.VERSION_NAME }}" \
             --build-number="${{ env.VERSION_CODE }}"
           popd
-          # Rename for clarity
+          # Stage for signing — r0adkll signs everything in this directory.
+          mkdir -p signed-apk
           mv flutter/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
-             fiosk-remote-${{ env.VERSION_NAME }}-arm64.apk
-          ls -la fiosk-remote-*.apk
+             signed-apk/fiosk-remote-${{ env.VERSION_NAME }}-arm64.apk
+          ls -la signed-apk/
 
-      - name: Upload APK artifact
+      - name: Pick build-tools version for apksigner
+        run: |
+          BUILD_TOOL_VERSION=$(ls /usr/local/lib/android/sdk/build-tools/ | tail -n 1)
+          echo "ANDROID_SIGN_TOOL_VERSION=$BUILD_TOOL_VERSION" >> $GITHUB_ENV
+          echo "Picked build-tools $BUILD_TOOL_VERSION"
+
+      - name: Sign APK with Fiosk release keystore
+        id: sign-fiosk-remote
+        uses: r0adkll/sign-android-release@v1
+        with:
+          releaseDirectory: ./signed-apk
+          signingKeyBase64: ${{ secrets.ANDROID_SIGNING_KEY }}
+          alias: ${{ secrets.ANDROID_ALIAS }}
+          keyStorePassword: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        env:
+          BUILD_TOOLS_VERSION: ${{ env.ANDROID_SIGN_TOOL_VERSION }}
+
+      - name: Upload signed APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: fiosk-remote-android-arm64
-          path: fiosk-remote-*.apk
+          path: ${{ steps.sign-fiosk-remote.outputs.signedReleaseFile }}
           retention-days: 30
